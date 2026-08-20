@@ -1,6 +1,8 @@
 import { getCommand } from './platform/commands.js';
 import { getResource } from './platform/resources.js';
-import { createInitialState, createStore, loadPersistedState, persistState } from './platform/state.js';
+import { createInitialState, createStore, findSplit, loadPersistedState, persistState } from './platform/state.js';
+import { CAPABILITIES, hasCapability, withCapability } from './platform/permissions.js';
+import { createPlatformError } from './platform/errors.js';
 import { renderApp } from './ui/templates.js';
 
 const root = document.querySelector('#root');
@@ -33,11 +35,25 @@ function runCommand(commandId) {
   const command = getCommand(commandId);
   if (!command) return;
   const state = store.getState();
+  if (command.capability && !hasCapability(state.permissions, command.capability)) {
+    const error = createPlatformError({
+      code: 'command.permission_denied',
+      category: 'permission',
+      message: `Permission required: ${command.capability}`,
+      recoverable: true,
+    });
+    store.dispatch({ type: 'error/add', error });
+    store.dispatch({ type: 'overlay/close' });
+    toast('Command unavailable', error.message);
+    return;
+  }
   const actionMap = {
     'workspace.toggleSidebar': () => store.dispatch({ type: 'workspace/toggle', region: 'sidebar' }),
     'workspace.toggleInspector': () => store.dispatch({ type: 'workspace/toggle', region: 'inspector' }),
     'workspace.toggleBottomPanel': () => store.dispatch({ type: 'workspace/toggle', region: 'bottomPanel' }),
-    'editor.splitRight': () => store.dispatch({ type: 'workspace/toggle', region: 'secondaryEditor' }),
+    'editor.splitRight': () => store.dispatch({ type: 'editor/split', orientation: 'vertical' }),
+    'editor.splitDown': () => store.dispatch({ type: 'editor/split', orientation: 'horizontal' }),
+    'editor.closeGroup': () => store.dispatch({ type: 'editor/closeGroup', groupId: state.editors.activeGroup }),
     'appearance.toggleTheme': () => store.dispatch({ type: 'appearance/theme', theme: state.appearance.theme === 'dark' ? 'light' : 'dark' }),
     'appearance.cycleDensity': () => {
       const order = ['compact', 'default', 'comfortable'];
@@ -47,6 +63,16 @@ function runCommand(commandId) {
     'resource.openArchitecture': () => store.dispatch({ type: 'editor/open', resourceId: 'document-architecture' }),
     'jobs.startExport': () => startExportJob(),
     'connection.toggleOffline': () => store.dispatch({ type: 'connection/set', online: !state.connection.online }),
+    'permissions.simulateReadOnly': () => {
+      let policy = withCapability(state.permissions, CAPABILITIES.RESOURCE_UPDATE, false);
+      policy = withCapability(policy, CAPABILITIES.RESOURCE_SHARE, false);
+      store.dispatch({ type: 'permissions/set', policy });
+    },
+    'permissions.restoreEditing': () => {
+      let policy = withCapability(state.permissions, CAPABILITIES.RESOURCE_UPDATE, true);
+      policy = withCapability(policy, CAPABILITIES.RESOURCE_SHARE, true);
+      store.dispatch({ type: 'permissions/set', policy });
+    },
   };
   if (commandId.startsWith('workspace.preset.')) {
     store.dispatch({ type: 'workspace/applyPreset', preset: commandId.split('.').at(-1) });
@@ -58,6 +84,10 @@ function runCommand(commandId) {
 }
 
 function startExportJob() {
+  if (!hasCapability(store.getState().permissions, CAPABILITIES.JOB_START)) {
+    toast('Export unavailable', 'Permission required: job.start');
+    return;
+  }
   const id = `job-${Date.now()}`;
   store.dispatch({ type: 'job/add', job: { id, title: 'Project export', state: 'running', progress: 5 } });
   toast('Export started', 'The job will continue while you work.');
@@ -74,7 +104,7 @@ function startExportJob() {
   }, 700);
 }
 
-function handleAction(action) {
+function handleAction(action, target) {
   switch (action) {
     case 'open-command':
       store.dispatch({ type: 'overlay/open', overlay: { type: 'command', query: '' } });
@@ -112,10 +142,13 @@ function handleAction(action) {
 }
 
 root.addEventListener('click', (event) => {
+  const overlayContent = event.target.closest('[data-overlay-content]');
+  if (overlayContent && event.target.closest('[data-action="close-overlay"]')?.matches('.overlay-backdrop')) return;
+
   const actionTarget = event.target.closest('[data-action]');
   if (actionTarget) {
     if (actionTarget.matches('.overlay-backdrop') && event.target !== actionTarget) return;
-    handleAction(actionTarget.dataset.action);
+    handleAction(actionTarget.dataset.action, actionTarget);
     return;
   }
 
@@ -190,6 +223,7 @@ root.addEventListener('click', (event) => {
 root.addEventListener('input', (event) => {
   const editor = event.target.closest('[data-document-editor]');
   if (editor) {
+    if (!hasCapability(store.getState().permissions, CAPABILITIES.RESOURCE_UPDATE)) return;
     store.dispatch({ type: 'draft/update', resourceId: editor.dataset.documentEditor, value: editor.value });
     const activeTab = root.querySelector(`[data-tab-resource="${editor.dataset.documentEditor}"]`);
     if (activeTab && !activeTab.querySelector('.modified-dot')) {
@@ -239,6 +273,7 @@ root.addEventListener('pointerdown', (event) => {
   const handle = event.target.closest('[data-resizer]');
   if (!handle) return;
   const state = store.getState();
+  const split = handle.dataset.splitId ? findSplit(state.editors.layout, handle.dataset.splitId) : null;
   resizeSession = {
     type: handle.dataset.resizer,
     x: event.clientX,
@@ -247,6 +282,10 @@ root.addEventListener('pointerdown', (event) => {
     inspectorWidth: state.workspace.inspectorWidth,
     bottomPanelHeight: state.workspace.bottomPanelHeight,
     editorSplit: state.workspace.editorSplit,
+    splitId: handle.dataset.splitId ?? null,
+    orientation: handle.dataset.orientation ?? null,
+    splitRatio: split?.ratio ?? null,
+    splitElement: handle.parentElement,
   };
   handle.setPointerCapture?.(event.pointerId);
   document.body.classList.add('is-resizing');
@@ -264,6 +303,14 @@ window.addEventListener('pointermove', (event) => {
   }
   if (resizeSession.type === 'bottom') {
     store.dispatch({ type: 'workspace/setSize', key: 'bottomPanelHeight', value: Math.max(120, Math.min(420, resizeSession.bottomPanelHeight - dy)) });
+  }
+  if (resizeSession.type === 'editor-split' && resizeSession.splitId) {
+    const rect = resizeSession.splitElement?.getBoundingClientRect();
+    const span = resizeSession.orientation === 'horizontal' ? rect?.height : rect?.width;
+    const delta = resizeSession.orientation === 'horizontal' ? dy : dx;
+    if (span) {
+      store.dispatch({ type: 'editor/setSplitRatio', splitId: resizeSession.splitId, ratio: resizeSession.splitRatio + delta / span });
+    }
   }
   if (resizeSession.type === 'editor') {
     const grid = root.querySelector('.editor-grid');

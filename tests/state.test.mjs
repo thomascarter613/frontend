@@ -51,3 +51,19 @@ test('region sizes are serializable state, not theme tokens', () => {
   assert.equal(state.workspace.sidebarWidth, 333);
   assert.equal(state.appearance.theme, 'dark');
 });
+
+test('legacy v1 editor state migrates into the recursive split layout', () => {
+  const saved = {
+    editors: {
+      groups: [
+        { id: 'group-a', tabs: ['document-architecture'], active: 'document-architecture' },
+        { id: 'group-b', tabs: ['table-project-metrics'], active: 'table-project-metrics' },
+      ],
+      activeGroup: 'group-a',
+    },
+  };
+  const state = createInitialState(saved);
+  assert.equal(state.editors.layout.type, 'split');
+  assert.equal(state.editors.layout.first.groupId, 'group-a');
+  assert.equal(state.editors.layout.second.groupId, 'group-b');
+});

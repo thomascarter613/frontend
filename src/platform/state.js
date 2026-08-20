@@ -1,6 +1,29 @@
 import { getPreset } from '../workspace/presets.js';
+import {
+  collectGroupIds,
+  createInitialEditorLayout,
+  findSplit,
+  removeGroup,
+  setSplitRatio,
+  splitGroup,
+} from './editor-layout.js';
+import { createCapabilityPolicy, DEFAULT_CAPABILITIES } from './permissions.js';
 
-const STORAGE_KEY = 'maximum-workspace:v1';
+const STORAGE_KEY = 'maximum-workspace:v2';
+const LEGACY_STORAGE_KEYS = Object.freeze(['maximum-workspace:v1']);
+
+function normalizeSavedEditors(savedEditors) {
+  const groups = savedEditors?.groups ?? [
+    { id: 'group-a', tabs: ['document-architecture', 'task-shell-keyboard'], active: 'document-architecture' },
+    { id: 'group-b', tabs: ['table-project-metrics', 'workflow-release'], active: 'table-project-metrics' },
+  ];
+  return {
+    groups,
+    activeGroup: savedEditors?.activeGroup ?? groups[0]?.id ?? 'group-a',
+    layout: savedEditors?.layout ?? createInitialEditorLayout(),
+    sequence: savedEditors?.sequence ?? groups.length,
+  };
+}
 
 export function createInitialState(saved = null) {
   const preset = getPreset(saved?.workspace?.preset ?? 'maximum');
@@ -23,18 +46,13 @@ export function createInitialState(saved = null) {
       module: saved?.navigation?.module ?? 'explorer',
       expanded: new Set(saved?.navigation?.expanded ?? ['projects', 'knowledge', 'data']),
     },
-    editors: {
-      groups: saved?.editors?.groups ?? [
-        { id: 'group-a', tabs: ['document-architecture', 'task-shell-keyboard'], active: 'document-architecture' },
-        { id: 'group-b', tabs: ['table-project-metrics', 'workflow-release'], active: 'table-project-metrics' },
-      ],
-      activeGroup: saved?.editors?.activeGroup ?? 'group-a',
-    },
+    editors: normalizeSavedEditors(saved?.editors),
     drafts: { ...(saved?.drafts ?? {}) },
     appearance: {
       theme: saved?.appearance?.theme ?? 'dark',
       density: saved?.appearance?.density ?? 'default',
     },
+    permissions: createCapabilityPolicy(saved?.permissions ?? { allow: DEFAULT_CAPABILITIES }),
     overlay: null,
     selectedResourceId: saved?.selectedResourceId ?? 'document-architecture',
     connection: {
@@ -42,6 +60,7 @@ export function createInitialState(saved = null) {
       sync: saved?.connection?.sync ?? 'synced',
     },
     jobs: saved?.jobs ?? [],
+    errors: [],
     toasts: [],
   };
 }
@@ -66,6 +85,21 @@ export function applyPreset(state, presetId) {
 
 function updateGroup(groups, groupId, updater) {
   return groups.map((group) => (group.id === groupId ? updater(group) : group));
+}
+
+function removeGroupEntity(groups, groupId) {
+  return groups.filter((group) => group.id !== groupId);
+}
+
+function nextGroupId(editors, requestedId = null) {
+  if (requestedId && !editors.groups.some((group) => group.id === requestedId)) return requestedId;
+  let sequence = editors.sequence + 1;
+  let id = `group-${sequence}`;
+  while (editors.groups.some((group) => group.id === id)) {
+    sequence += 1;
+    id = `group-${sequence}`;
+  }
+  return id;
 }
 
 export function reducer(state, action) {
@@ -139,6 +173,49 @@ export function reducer(state, action) {
       }));
       return { ...state, editors: { ...state.editors, groups, activeGroup: to }, selectedResourceId: action.resourceId };
     }
+    case 'editor/split': {
+      const sourceGroupId = action.groupId ?? state.editors.activeGroup;
+      const sourceGroup = state.editors.groups.find((group) => group.id === sourceGroupId);
+      if (!sourceGroup) return state;
+      const newGroupId = nextGroupId(state.editors, action.newGroupId);
+      const resourceId = action.resourceId ?? sourceGroup.active;
+      const newGroup = { id: newGroupId, tabs: resourceId ? [resourceId] : [], active: resourceId ?? null };
+      return {
+        ...state,
+        workspace: { ...state.workspace, secondaryEditor: true, preset: 'custom' },
+        editors: {
+          ...state.editors,
+          groups: [...state.editors.groups, newGroup],
+          activeGroup: newGroupId,
+          sequence: Math.max(state.editors.sequence + 1, Number(newGroupId.split('-').at(-1)) || state.editors.sequence + 1),
+          layout: splitGroup(state.editors.layout, sourceGroupId, newGroupId, {
+            orientation: action.orientation ?? 'vertical',
+            placement: action.placement ?? 'after',
+            ratio: action.ratio ?? 0.5,
+          }),
+        },
+        selectedResourceId: resourceId ?? state.selectedResourceId,
+      };
+    }
+    case 'editor/closeGroup': {
+      if (state.editors.groups.length <= 1) return state;
+      const groups = removeGroupEntity(state.editors.groups, action.groupId);
+      const layout = removeGroup(state.editors.layout, action.groupId);
+      const remainingIds = collectGroupIds(layout);
+      const activeGroup = state.editors.activeGroup === action.groupId ? remainingIds.at(-1) : state.editors.activeGroup;
+      const activeResource = groups.find((group) => group.id === activeGroup)?.active ?? state.selectedResourceId;
+      return {
+        ...state,
+        editors: { ...state.editors, groups, layout, activeGroup },
+        selectedResourceId: activeResource,
+      };
+    }
+    case 'editor/setSplitRatio':
+      return {
+        ...state,
+        workspace: { ...state.workspace, preset: 'custom' },
+        editors: { ...state.editors, layout: setSplitRatio(state.editors.layout, action.splitId, action.ratio) },
+      };
     case 'draft/update':
       return { ...state, drafts: { ...state.drafts, [action.resourceId]: action.value }, connection: { ...state.connection, sync: state.connection.online ? 'saving' : 'offline changes' } };
     case 'draft/markSaved':
@@ -147,6 +224,8 @@ export function reducer(state, action) {
       return { ...state, appearance: { ...state.appearance, theme: action.theme } };
     case 'appearance/density':
       return { ...state, appearance: { ...state.appearance, density: action.density } };
+    case 'permissions/set':
+      return { ...state, permissions: createCapabilityPolicy(action.policy) };
     case 'overlay/open':
       return { ...state, overlay: action.overlay };
     case 'overlay/close':
@@ -157,6 +236,10 @@ export function reducer(state, action) {
       return { ...state, jobs: [...state.jobs, action.job] };
     case 'job/update':
       return { ...state, jobs: state.jobs.map((job) => (job.id === action.id ? { ...job, ...action.patch } : job)) };
+    case 'error/add':
+      return { ...state, errors: [...state.errors.slice(-19), action.error] };
+    case 'error/dismiss':
+      return { ...state, errors: state.errors.filter((error) => error.code !== action.code) };
     case 'toast/add':
       return { ...state, toasts: [...state.toasts.slice(-3), action.toast] };
     case 'toast/remove':
@@ -171,6 +254,7 @@ function serializable(state) {
     ...state,
     navigation: { ...state.navigation, expanded: [...state.navigation.expanded] },
     overlay: null,
+    errors: [],
     toasts: [],
   };
 }
@@ -178,7 +262,12 @@ function serializable(state) {
 export function loadPersistedState(storage = globalThis.localStorage) {
   try {
     const raw = storage?.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (raw) return JSON.parse(raw);
+    for (const key of LEGACY_STORAGE_KEYS) {
+      const legacy = storage?.getItem(key);
+      if (legacy) return JSON.parse(legacy);
+    }
+    return null;
   } catch {
     return null;
   }
@@ -208,3 +297,5 @@ export function createStore(initialState) {
     },
   };
 }
+
+export { STORAGE_KEY, LEGACY_STORAGE_KEYS, findSplit };

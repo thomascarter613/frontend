@@ -1,7 +1,13 @@
+import { readdir } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 
+const tests = (await readdir(new URL('../tests/', import.meta.url)))
+  .filter((name) => name.endsWith('.test.mjs'))
+  .sort()
+  .map((name) => `tests/${name}`);
+
 for (const [label, command, args] of [
-  ['tests', process.execPath, ['--test', 'tests/state.test.mjs', 'tests/commands.test.mjs', 'tests/render.test.mjs']],
+  ['tests', process.execPath, ['--test', ...tests]],
   ['build', process.execPath, ['scripts/build.mjs']],
 ]) {
   console.log(`\n== ${label} ==`);
