@@ -1,6 +1,7 @@
 import { getCommand } from '../platform/commands.js';
 import { createPlatformError } from '../platform/errors.js';
 import { CAPABILITIES, hasCapability, withCapability } from '../platform/permissions.js';
+import { platformInstrumentation } from '../platform/runtime.js';
 import { closeOverlay, openOverlay, recordReversible, retryFailedJobs, startExportJob, store, toast, undoService } from './context.js';
 
 export function runCommand(commandId) {
@@ -10,6 +11,7 @@ export function runCommand(commandId) {
   if (command.capability && !hasCapability(state.permissions, command.capability)) {
     const error = createPlatformError({ code: 'command.permission_denied', category: 'permission', message: `Permission required: ${command.capability}`, recoverable: true });
     store.dispatch({ type: 'error/add', error });
+    platformInstrumentation.emit('command.denied', { commandId, capability: command.capability });
     closeOverlay();
     toast('Command unavailable', error.message);
     return;
@@ -57,6 +59,7 @@ export function runCommand(commandId) {
     recordReversible({ label: command.label, action: { type: 'workspace/applyPreset', preset: commandId.split('.').at(-1) }, inverse: { type: 'workspace/restore', workspace: { ...state.workspace } } });
   } else actions[commandId]?.();
 
+  platformInstrumentation.emit('command.executed', { commandId, resourceId: store.getState().selectedResourceId ?? null });
   if (store.getState().overlay && !['system.openRecovery', 'system.openDiagnostics', 'system.openNotifications'].includes(commandId)) closeOverlay();
   if (!['history.undo', 'history.redo'].includes(commandId)) toast(command.label);
 }
