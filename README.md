@@ -39,9 +39,17 @@ This runs Node's built-in test runner and creates a deployable static build in `
 - Context menu on Resource rows
 - Offline simulation and local draft state
 - Background export Job with global status feedback
-- Toast feedback and Escape-stack overlay dismissal
+- Toast feedback and ordered Escape-stack dismissal with modal focus restoration
+- Generic selection architecture with single/multiple/range/all-matching modes
+- Shared undo/redo service reused by workspace, appearance, permission, and selection commands
+- Canonical background-operation lifecycle with retryable Jobs
+- Recovery Center for unresolved drafts, unsynced work, failed Jobs, and recoverable errors
+- Diagnostics Center with connectivity, sync, Jobs, extensions, workspace, and recent-error summaries
+- Recursive editor split-tree layout with vertical/horizontal nested groups and persisted split ratios
+- Capability-based permissions plus bounded View/Editor/Field/Action/Command/Inspector/Panel registries
+- Extension contribution host with namespaced contributions and atomic rollback
 - Responsive desktop degradation rules that preserve workstation semantics
-- State, command, and renderer smoke tests
+- State, command, editor-layout, permissions, extensions, operations, selection, undo, recovery, diagnostics, and renderer tests
 
 ## Architecture
 
@@ -49,16 +57,26 @@ This runs Node's built-in test runner and creates a deployable static build in `
 docs/                     authoritative Pass 1–10 specification
 src/
 ├── platform/
-│   ├── commands.js        stable command IDs and command search
+│   ├── commands.js        stable user-intent command IDs
+│   ├── diagnostics.js     readable platform-health snapshots
+│   ├── editor-layout.js   recursive editor split-tree operations
+│   ├── errors.js          structured error contract
+│   ├── extensions.js      bounded extension contribution host
+│   ├── operations.js      canonical operation lifecycle
+│   ├── permissions.js     capability-based authorization
+│   ├── recovery.js        unresolved recoverable-work selectors
+│   ├── registries.js      View/Editor/Field/Action/etc registries
 │   ├── resources.js       canonical Resource fixtures and module mapping
-│   └── state.js           workspace/resource/draft/job/persistence state
-├── ui/
-│   ├── icons.js           reusable semantic SVG icons
-│   └── templates.js       compositional UI renderer
+│   ├── runtime.js         platform registry bootstrap/resolution
+│   ├── selection.js       generic selection model
+│   ├── state.js           serializable workspace/application state
+│   └── undo.js            shared reversible-operation history
+├── ui/                    modular shell/editor/panel/overlay renderers
+├── styles/                foundations, workspace, panels, overlays, splits
 ├── workspace/
 │   └── presets.js         canonical workspace configurations
-├── main.js                application controller + interactions
-└── styles.css             semantic tokens + component/workspace styling
+├── main.js                controller, focus, keyboard, Jobs, persistence
+└── styles.css             stylesheet composition entrypoint
 ```
 
 Dependency direction follows the specification:

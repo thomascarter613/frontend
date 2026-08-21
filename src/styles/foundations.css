@@ -1,0 +1,88 @@
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color-scheme: dark;
+  --font-ui: 13px;
+  --font-meta: 11px;
+  --row-height: 30px;
+  --control-height: 30px;
+  --tab-height: 34px;
+  --global-height: 44px;
+  --status-height: 25px;
+  --rail-width: 48px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --bg-app: #0d0f12;
+  --bg-surface: #12151a;
+  --bg-surface-2: #161a20;
+  --bg-elevated: #1b2027;
+  --bg-hover: #20252d;
+  --bg-selected: #262f3a;
+  --border: #252b34;
+  --border-strong: #343c47;
+  --text: #eef1f5;
+  --text-secondary: #a9b0bb;
+  --text-muted: #737d89;
+  --accent: #75a7ff;
+  --accent-soft: #1b2d48;
+  --success: #63c58d;
+  --warning: #d6a85a;
+  --danger: #ef7a7a;
+  --focus: #8cb7ff;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+  --bg-app: #eef0f3;
+  --bg-surface: #f8f9fb;
+  --bg-surface-2: #f2f4f7;
+  --bg-elevated: #ffffff;
+  --bg-hover: #e9edf2;
+  --bg-selected: #e2e9f5;
+  --border: #d8dde5;
+  --border-strong: #c6ccd6;
+  --text: #1b2027;
+  --text-secondary: #55606f;
+  --text-muted: #798391;
+  --accent: #356fc4;
+  --accent-soft: #dce9fb;
+  --success: #2e8a58;
+  --warning: #9b6e20;
+  --danger: #c54a4a;
+  --focus: #256ccc;
+}
+
+html[data-density="compact"] { --font-ui: 12px; --row-height: 26px; --control-height: 26px; --tab-height: 30px; }
+html[data-density="comfortable"] { --font-ui: 14px; --row-height: 34px; --control-height: 34px; --tab-height: 38px; }
+
+* { box-sizing: border-box; }
+html, body, #root { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+body { background: var(--bg-app); color: var(--text); font-size: var(--font-ui); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { border: 0; background: none; }
+button, select { cursor: pointer; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+code, pre { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
+
+.app-shell { width: 100%; height: 100%; display: grid; grid-template-rows: var(--global-height) minmax(0,1fr) var(--status-height); background: var(--bg-app); }
+.icon { width: 17px; height: 17px; display: block; flex: 0 0 auto; }
+.global-bar { display: grid; grid-template-columns: 1fr minmax(360px, 620px) 1fr; align-items: center; gap: 16px; padding: 0 10px; background: var(--bg-surface); border-bottom: 1px solid var(--border); user-select: none; }
+.global-left, .global-actions, .header-actions, .workspace-title, .toolbar, .avatar-group { display: flex; align-items: center; }
+.global-left { gap: 8px; min-width: 0; }
+.global-actions { justify-content: flex-end; gap: 4px; }
+.product-mark { width: 25px; height: 25px; border: 1px solid var(--border-strong); display: grid; place-items: center; border-radius: 5px; font-weight: 700; background: var(--bg-elevated); }
+.workspace-switcher { height: 30px; padding: 0 8px; color: var(--text-secondary); border-radius: var(--radius-sm); white-space: nowrap; }
+.workspace-switcher:hover { background: var(--bg-hover); color: var(--text); }
+.command-trigger { justify-self: stretch; height: 30px; display: grid; grid-template-columns: 20px 1fr auto; align-items: center; gap: 8px; padding: 0 9px; text-align: left; color: var(--text-secondary); background: var(--bg-surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.command-trigger:hover { border-color: var(--border-strong); background: var(--bg-hover); }
+kbd { font-size: 10px; color: var(--text-muted); padding: 2px 5px; border: 1px solid var(--border-strong); border-radius: 4px; background: var(--bg-surface); box-shadow: inset 0 -1px 0 rgb(0 0 0 / .16); }
+.icon-button { width: var(--control-height); height: var(--control-height); display: grid; place-items: center; border-radius: var(--radius-sm); color: var(--text-secondary); }
+.icon-button:hover { color: var(--text); background: var(--bg-hover); }
+.avatar { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; background: #394353; color: #f5f7fa; font-size: 10px; font-weight: 700; border: 1px solid #4b5769; }
+.avatar.small { width: 23px; height: 23px; margin-left: -4px; border: 2px solid var(--bg-surface); }
+

@@ -51,3 +51,32 @@ test('region sizes are serializable state, not theme tokens', () => {
   assert.equal(state.workspace.sidebarWidth, 333);
   assert.equal(state.appearance.theme, 'dark');
 });
+
+test('legacy v1 editor state migrates into the recursive split layout', () => {
+  const saved = {
+    editors: {
+      groups: [
+        { id: 'group-a', tabs: ['document-architecture'], active: 'document-architecture' },
+        { id: 'group-b', tabs: ['table-project-metrics'], active: 'table-project-metrics' },
+      ],
+      activeGroup: 'group-a',
+    },
+  };
+  const state = createInitialState(saved);
+  assert.equal(state.editors.layout.type, 'split');
+  assert.equal(state.editors.layout.first.groupId, 'group-a');
+  assert.equal(state.editors.layout.second.groupId, 'group-b');
+});
+
+
+test('focus, selection, active resource, and active editor group remain distinct state concepts', () => {
+  let state = createInitialState();
+  const resourceBefore = state.selectedResourceId;
+  const groupBefore = state.editors.activeGroup;
+  state = reducer(state, { type: 'focus/set', region: 'sidebar', id: 'filter-input' });
+  state = reducer(state, { type: 'selection/set', selection: { scope: 'table:metrics', mode: 'single', ids: ['row-1'], anchorId: 'row-1' } });
+  assert.equal(state.focus.region, 'sidebar');
+  assert.equal(state.selection.ids[0], 'row-1');
+  assert.equal(state.selectedResourceId, resourceBefore);
+  assert.equal(state.editors.activeGroup, groupBefore);
+});

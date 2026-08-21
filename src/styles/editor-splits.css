@@ -1,0 +1,22 @@
+/* Recursive editor split tree */
+.editor-grid { display: block; position: relative; }
+.editor-split, .editor-split-primary, .editor-split-secondary, .editor-leaf { min-width: 0; min-height: 0; width: 100%; height: 100%; overflow: hidden; }
+.editor-split { display: grid; }
+.editor-split-vertical { grid-template-columns: minmax(0, var(--split-ratio)) 4px minmax(0, calc(100% - var(--split-ratio) - 4px)); grid-template-rows: minmax(0, 1fr); }
+.editor-split-horizontal { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, var(--split-ratio)) 4px minmax(0, calc(100% - var(--split-ratio) - 4px)); }
+.editor-split-vertical > .editor-split-primary { grid-column: 1; grid-row: 1; }
+.editor-split-vertical > .editor-tree-resizer { grid-column: 2; grid-row: 1; width: 4px; margin: 0; }
+.editor-split-vertical > .editor-split-secondary { grid-column: 3; grid-row: 1; }
+.editor-split-horizontal > .editor-split-primary { grid-column: 1; grid-row: 1; }
+.editor-split-horizontal > .editor-tree-resizer { grid-column: 1; grid-row: 2; height: 4px; margin: 0; }
+.editor-split-horizontal > .editor-split-secondary { grid-column: 1; grid-row: 3; }
+.editor-leaf > .editor-group { width: 100%; height: 100%; }
+.permission-banner { margin: -2px 0 14px; padding: 7px 9px; border: 1px solid color-mix(in srgb, var(--warning), transparent 55%); background: color-mix(in srgb, var(--warning), transparent 92%); color: var(--warning); font-size: 11px; }
+button:disabled { cursor: not-allowed; opacity: .48; }
+.document-editor[readonly] { cursor: default; color: var(--text-muted); }
+
+@media (max-width: 1100px) {
+  .editor-split > .editor-split-secondary, .editor-split > .editor-tree-resizer { display: none; }
+  .editor-split { display: block; }
+  .editor-split > .editor-split-primary { width: 100%; height: 100%; }
+}
