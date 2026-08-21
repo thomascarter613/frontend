@@ -1,0 +1,4 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+function registry(initial = []) { const map = new Map(initial.map((entry) => [entry.id, entry])); return { register(entry) { if (map.has(entry.id)) throw new Error('duplicate'); map.set(entry.id, Object.freeze({ ...entry })); }, get: (id) => map.get(id) ?? null, list: () => [...map.values()] }; }
+test('new field type Confidence Score can be registered with renderer/editor/filter/sort metadata', () => { const fields = registry([{ id: 'field.text', control: 'text' }]); fields.register({ id: 'field.confidence', label: 'Confidence Score', valueType: 'number', renderer: 'confidence-meter', editor: 'number', filterOperators: ['gte', 'lte'], sortable: true }); const field = fields.get('field.confidence'); assert.equal(field.renderer, 'confidence-meter'); assert.deepEqual(field.filterOperators, ['gte', 'lte']); assert.equal(field.sortable, true); });

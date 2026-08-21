@@ -1,0 +1,3 @@
+import { createRoute, serializeRoute } from './routing.js';
+export function createResourceLink({ workspaceId = 'default', resourceId, viewId = null, filter = null, subview = null } = {}) { if (!resourceId) throw new TypeError('Resource link requires stable resourceId'); return serializeRoute(createRoute({ workspaceId, resourceId, viewId, filter, subview })); }
+export function createInternalReference({ resourceId, label = null } = {}) { if (!resourceId) throw new TypeError('Internal reference requires stable resourceId'); return Object.freeze({ type: 'resource-reference', resourceId, label }); }
