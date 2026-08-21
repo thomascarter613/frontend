@@ -5,8 +5,8 @@ export function createDiagnosticsSnapshot(state, { extensionCount = 0, contribut
   const recovery = selectRecoveryItems(state);
   return Object.freeze({
     application: state.errors.some((error) => !error.recoverable) ? 'Needs attention' : 'Healthy',
-    connectivity: state.connection.online ? (state.connection.sync === 'synced' ? 'Healthy' : 'Synchronizing') : 'Offline',
-    syncIssues: recovery.filter((item) => item.type === 'unsynced-changes').length,
+    connectivity: state.connection.status === 'degraded' ? 'Degraded' : state.connection.status === 'reconnecting' ? 'Reconnecting' : state.connection.online ? (state.connection.sync === 'synced' ? 'Healthy' : 'Synchronizing') : 'Offline',
+    syncIssues: recovery.filter((item) => ['unsynced-changes', 'sync-conflict'].includes(item.type)).length,
     jobs: { total: state.jobs.length, running: state.jobs.filter((job) => ['running', 'queued', 'retrying'].includes(job.state)).length, failed: failedJobs.length },
     extensions: { installed: extensionCount, contributions: contributionCount, status: 'Healthy' },
     workspace: { preset: state.workspace.preset, editorGroups: state.editors.groups.length },

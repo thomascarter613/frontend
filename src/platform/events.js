@@ -1,0 +1,3 @@
+export function createNotification({ id, type = 'info', title, body = '', resourceId = null, read = false, actions = [] } = {}) { if (!id || !title) throw new TypeError('Notification requires id and title'); return Object.freeze({ id, type, title, body, resourceId, read, createdAt: Date.now(), actions: [...actions] }); }
+export function createActivityEvent({ id, type, actor = 'system', resourceId = null, summary, metadata = null } = {}) { if (!id || !type || !summary) throw new TypeError('Activity event requires id, type, and summary'); return Object.freeze({ id, type, actor, resourceId, summary, metadata, createdAt: Date.now() }); }
+export function unreadNotificationCount(notifications = []) { return notifications.filter((notification) => !notification.read).length; }

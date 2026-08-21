@@ -1,7 +1,7 @@
 import { activityRail, breadcrumbs, globalBar, sidebar, workspaceHeader } from './shell.js';
 import { editorGrid } from './editor.js';
 import { bottomPanel, inspector, statusBar } from './panels.js';
-import { commandPalette, contextMenu, diagnosticsCenter, recoveryCenter, settingsDialog, toastStack } from './overlays.js';
+import { commandPalette, contextMenu, diagnosticsCenter, notificationCenter, recoveryCenter, settingsDialog, toastStack } from './overlays.js';
 
 export function renderApp(state) {
   return `<div class="app-shell" data-theme="${state.appearance.theme}" data-density="${state.appearance.density}">
@@ -17,7 +17,7 @@ export function renderApp(state) {
       ${inspector(state)}
     </div>
     ${statusBar(state)}
-    <div class="overlay-layer">${commandPalette(state)}${settingsDialog(state)}${recoveryCenter(state)}${diagnosticsCenter(state)}${contextMenu(state)}</div>
+    <div class="overlay-layer">${commandPalette(state)}${settingsDialog(state)}${recoveryCenter(state)}${diagnosticsCenter(state)}${notificationCenter(state)}${contextMenu(state)}</div>
     ${toastStack(state)}
   </div>`;
 }

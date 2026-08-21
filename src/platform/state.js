@@ -9,6 +9,7 @@ import {
 } from './editor-layout.js';
 import { createCapabilityPolicy, DEFAULT_CAPABILITIES } from './permissions.js';
 import { clearSelection, createSelection } from './selection.js';
+import { BUILTIN_SAVED_VIEWS, createTableViewState } from './views.js';
 
 const STORAGE_KEY = 'maximum-workspace:v2';
 const LEGACY_STORAGE_KEYS = Object.freeze(['maximum-workspace:v1']);
@@ -45,6 +46,10 @@ export function createInitialState(saved = null) {
     },
     navigation: {
       module: saved?.navigation?.module ?? 'explorer',
+      workspaceId: saved?.navigation?.workspaceId ?? 'product-research',
+      viewId: saved?.navigation?.viewId ?? null,
+      filter: saved?.navigation?.filter ?? null,
+      subview: saved?.navigation?.subview ?? null,
       expanded: new Set(saved?.navigation?.expanded ?? ['projects', 'knowledge', 'data']),
     },
     editors: normalizeSavedEditors(saved?.editors),
@@ -58,12 +63,23 @@ export function createInitialState(saved = null) {
     selectedResourceId: saved?.selectedResourceId ?? 'document-architecture',
     connection: {
       online: saved?.connection?.online ?? true,
+      status: saved?.connection?.status ?? (saved?.connection?.online === false ? 'offline' : 'online'),
       sync: saved?.connection?.sync ?? 'synced',
     },
     jobs: saved?.jobs ?? [],
+    views: saved?.views ?? { saved: BUILTIN_SAVED_VIEWS, activeViewId: 'view.saved.metrics', table: createTableViewState(BUILTIN_SAVED_VIEWS.find((view) => view.id === 'view.saved.metrics')) },
+    syncQueue: saved?.syncQueue ?? [],
+    conflicts: saved?.conflicts ?? [],
     selection: clearSelection(),
     focus: { region: null, id: null },
     recovery: { recoveredDraftIds: saved ? Object.keys(saved?.drafts ?? {}) : [] },
+    notifications: [
+      { id: 'notification-welcome', type: 'info', title: 'Architecture review ready', body: 'The platform architecture is ready for review.', resourceId: 'document-architecture', read: false, createdAt: Date.now(), actions: [] },
+    ],
+    activity: [
+      { id: 'activity-sync', type: 'workspace.synced', actor: 'system', resourceId: null, summary: 'Workspace synchronized', createdAt: Date.now() - 120000 },
+      { id: 'activity-architecture', type: 'resource.updated', actor: 'Avery', resourceId: 'document-architecture', summary: 'Architecture document updated', createdAt: Date.now() - 420000 },
+    ],
     errors: [],
     toasts: [],
   };
@@ -124,6 +140,14 @@ export function reducer(state, action) {
       return { ...state, workspace: { ...state.workspace, [action.region]: action.tab } };
     case 'navigation/setModule':
       return { ...state, navigation: { ...state.navigation, module: action.module } };
+    case 'route/apply':
+      return {
+        ...state,
+        navigation: { ...state.navigation, workspaceId: action.route.workspaceId ?? state.navigation.workspaceId, viewId: action.route.viewId ?? null, filter: action.route.filter ?? null, subview: action.route.subview ?? null },
+        selectedResourceId: action.route.resourceId ?? state.selectedResourceId,
+      };
+    case 'view/activate':
+      return { ...state, views: { ...state.views, activeViewId: action.viewId }, navigation: { ...state.navigation, viewId: action.viewType ?? state.navigation.viewId, filter: action.filter ?? state.navigation.filter } };
     case 'navigation/toggleExpanded': {
       const expanded = new Set(state.navigation.expanded);
       expanded.has(action.id) ? expanded.delete(action.id) : expanded.add(action.id);
@@ -245,13 +269,33 @@ export function reducer(state, action) {
     case 'overlay/close':
       return { ...state, overlay: null };
     case 'connection/set':
-      return { ...state, connection: { online: action.online, sync: action.online ? 'synced' : 'offline' } };
+      return { ...state, connection: { ...state.connection, online: action.online, status: action.online ? 'online' : 'offline', sync: action.online ? state.connection.sync === 'offline changes' ? 'pending sync' : 'synced' : 'offline' } };
+    case 'connection/status':
+      return { ...state, connection: { ...state.connection, status: action.status, online: action.status !== 'offline' } };
+    case 'connection/sync':
+      return { ...state, connection: { ...state.connection, sync: action.sync } };
     case 'job/add':
       return { ...state, jobs: [...state.jobs, action.job] };
     case 'job/update':
       return { ...state, jobs: state.jobs.map((job) => (job.id === action.id ? { ...job, ...action.patch } : job)) };
     case 'job/remove':
       return { ...state, jobs: state.jobs.filter((job) => job.id !== action.id) };
+    case 'notification/add':
+      return { ...state, notifications: [action.notification, ...state.notifications] };
+    case 'notification/read':
+      return { ...state, notifications: state.notifications.map((notification) => notification.id === action.id ? { ...notification, read: true } : notification) };
+    case 'activity/add':
+      return { ...state, activity: [action.event, ...state.activity].slice(0, 100) };
+    case 'sync/enqueue':
+      return { ...state, syncQueue: [...state.syncQueue, action.mutation], connection: { ...state.connection, sync: state.connection.online ? 'pending sync' : 'offline changes' } };
+    case 'sync/update':
+      return { ...state, syncQueue: state.syncQueue.map((mutation) => mutation.id === action.id ? { ...mutation, ...action.patch } : mutation) };
+    case 'sync/remove':
+      return { ...state, syncQueue: state.syncQueue.filter((mutation) => mutation.id !== action.id) };
+    case 'conflict/add':
+      return { ...state, conflicts: [...state.conflicts, action.conflict] };
+    case 'conflict/resolve':
+      return { ...state, conflicts: state.conflicts.map((conflict) => conflict.id === action.id ? action.conflict : conflict) };
     case 'error/add':
       return { ...state, errors: [...state.errors.slice(-19), action.error] };
     case 'error/dismiss':
@@ -272,6 +316,8 @@ function serializable(state) {
     overlay: null,
     selection: clearSelection(),
     focus: { region: null, id: null },
+    notifications: [],
+    activity: [],
     errors: [],
     toasts: [],
   };

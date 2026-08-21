@@ -1,5 +1,5 @@
 import { findSplit } from '../platform/state.js';
-import { closeOverlay, openOverlay, root, store, toast } from './context.js';
+import { closeOverlay, flushSyncQueue, openOverlay, root, saveActiveResource, store } from './context.js';
 import { runCommand } from './commands.js';
 
 export function bindPointerKeyboardEvents() {
@@ -62,7 +62,7 @@ export function bindPointerKeyboardEvents() {
     if (mod && key === 'b') { event.preventDefault(); runCommand('workspace.toggleSidebar'); return; }
     if (mod && event.key === '\\') { event.preventDefault(); runCommand('editor.splitRight'); return; }
     if (mod && key === 'j') { event.preventDefault(); runCommand('workspace.toggleBottomPanel'); return; }
-    if (mod && key === 's') { event.preventDefault(); store.dispatch({ type: 'draft/markSaved' }); toast('Saved', store.getState().connection.online ? 'Changes synchronized.' : 'Changes preserved locally until reconnection.'); return; }
+    if (mod && key === 's') { event.preventDefault(); saveActiveResource(); return; }
     if (event.key === 'Escape') {
       const state = store.getState();
       if (dragTab) { dragTab = null; event.preventDefault(); return; }
@@ -73,6 +73,6 @@ export function bindPointerKeyboardEvents() {
     }
   });
 
-  window.addEventListener('online', () => store.dispatch({ type: 'connection/set', online: true }));
+  window.addEventListener('online', () => { store.dispatch({ type: 'connection/set', online: true }); flushSyncQueue(); });
   window.addEventListener('offline', () => store.dispatch({ type: 'connection/set', online: false }));
 }

@@ -1,6 +1,6 @@
-import { getResource } from '../platform/resources.js';
+import { getResource, listResources } from '../platform/resources.js';
 import { CAPABILITIES, hasCapability } from '../platform/permissions.js';
-import { closeOverlay, copyDiagnostics, openOverlay, retryFailedJobs, root, startExportJob, store, toast, updateSelectionFromElement } from './context.js';
+import { closeOverlay, copyDiagnostics, flushSyncQueue, openOverlay, retryFailedJobs, root, startExportJob, store, toast, updateSelectionFromElement } from './context.js';
 import { runCommand } from './commands.js';
 
 export function bindUiEvents() {
@@ -16,6 +16,7 @@ export function bindUiEvents() {
         'open-command': () => openOverlay({ type: 'command', query: '' }, actionTarget),
         'close-overlay': () => closeOverlay(),
         'open-settings': () => openOverlay({ type: 'settings' }, actionTarget),
+        'open-notifications': () => openOverlay({ type: 'notifications' }, actionTarget),
         'open-recovery': () => openOverlay({ type: 'recovery' }, actionTarget),
         'open-diagnostics': () => openOverlay({ type: 'diagnostics' }, actionTarget),
         'copy-diagnostics': copyDiagnostics,
@@ -26,12 +27,29 @@ export function bindUiEvents() {
         'toggle-bottom-panel': () => runCommand('workspace.toggleBottomPanel'),
         'toggle-theme': () => runCommand('appearance.toggleTheme'),
         'start-export': startExportJob,
-        'toggle-offline': () => { const online = !store.getState().connection.online; store.dispatch({ type: 'connection/set', online }); toast(online ? 'Connection restored' : 'Offline mode', online ? 'Local changes can synchronize again.' : 'Edits will be preserved locally.'); },
+        'toggle-offline': () => { const online = !store.getState().connection.online; store.dispatch({ type: 'connection/set', online }); toast(online ? 'Connection restored' : 'Offline mode', online ? 'Local changes can synchronize again.' : 'Edits will be preserved locally.'); if (online) flushSyncQueue(); },
       };
       actions[action]?.();
       return;
     }
 
+    const notificationTarget = event.target.closest('[data-notification-id]');
+    if (notificationTarget) {
+      store.dispatch({ type: 'notification/read', id: notificationTarget.dataset.notificationId });
+      const resourceId = notificationTarget.dataset.openResource;
+      if (resourceId && getResource(resourceId)) store.dispatch({ type: 'editor/open', resourceId });
+      closeOverlay({ restoreFocus: false });
+      return;
+    }
+    const savedViewTarget = event.target.closest('[data-saved-view]');
+    if (savedViewTarget) {
+      const view = store.getState().views.saved.find((item) => item.id === savedViewTarget.dataset.savedView);
+      if (!view) return;
+      store.dispatch({ type: 'view/activate', viewId: view.id, viewType: `view.${view.viewType}`, filter: view.filters });
+      const compatible = listResources().find((resource) => resource.type === view.resourceType);
+      if (compatible) store.dispatch({ type: 'editor/open', resourceId: compatible.id });
+      return;
+    }
     const selectionTarget = event.target.closest('[data-select-item]');
     if (selectionTarget) return updateSelectionFromElement(selectionTarget, { additive: event.metaKey || event.ctrlKey, range: event.shiftKey });
     const moduleTarget = event.target.closest('[data-module]');
@@ -98,7 +116,7 @@ export function bindUiEvents() {
 
   root.addEventListener('keydown', (event) => {
     const state = store.getState();
-    if (event.key === 'Tab' && ['command', 'settings', 'recovery', 'diagnostics'].includes(state.overlay?.type)) {
+    if (event.key === 'Tab' && ['command', 'settings', 'recovery', 'diagnostics', 'notifications'].includes(state.overlay?.type)) {
       const container = root.querySelector('[data-overlay-content]');
       const focusable = [...(container?.querySelectorAll('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])') ?? [])];
       if (focusable.length) {

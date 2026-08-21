@@ -34,6 +34,7 @@ export function runCommand(commandId) {
     'history.redo': () => { const entry = undoService.redo((action) => store.dispatch(action)); toast(entry ? `Redid ${entry.label}` : 'Nothing to redo'); },
     'system.openRecovery': () => openOverlay({ type: 'recovery' }),
     'system.openDiagnostics': () => openOverlay({ type: 'diagnostics' }),
+    'system.openNotifications': () => openOverlay({ type: 'notifications' }),
     'jobs.retryFailed': retryFailedJobs,
     'selection.clear': () => {
       const previous = state.selection;
@@ -56,6 +57,6 @@ export function runCommand(commandId) {
     recordReversible({ label: command.label, action: { type: 'workspace/applyPreset', preset: commandId.split('.').at(-1) }, inverse: { type: 'workspace/restore', workspace: { ...state.workspace } } });
   } else actions[commandId]?.();
 
-  if (store.getState().overlay && !['system.openRecovery', 'system.openDiagnostics'].includes(commandId)) closeOverlay();
+  if (store.getState().overlay && !['system.openRecovery', 'system.openDiagnostics', 'system.openNotifications'].includes(commandId)) closeOverlay();
   if (!['history.undo', 'history.redo'].includes(commandId)) toast(command.label);
 }

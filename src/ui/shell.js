@@ -1,5 +1,6 @@
 import { MODULES, getResource, resourcesForModule } from '../platform/resources.js';
 import { hasCapability } from '../platform/permissions.js';
+import { unreadNotificationCount } from '../platform/events.js';
 import { icon } from './icons.js';
 import { escapeHtml } from './html.js';
 
@@ -37,15 +38,16 @@ export function sidebar(state) {
       <div class="tree-heading">Workspace</div>
       ${resources.map((resource) => resourceRow(resource, state)).join('')}
     </div>
-    <div class="sidebar-section"><div class="tree-heading">Saved Views</div><button class="tree-row"><span class="tree-leading">${icon('documents')}</span><span class="tree-label">Recently updated</span></button><button class="tree-row"><span class="tree-leading">${icon('tasks')}</span><span class="tree-label">Needs review</span></button></div>
+    <div class="sidebar-section"><div class="tree-heading">Saved Views</div>${state.views.saved.slice(0, 5).map((view) => `<button class="tree-row ${state.views.activeViewId === view.id ? 'is-selected' : ''}" data-saved-view="${view.id}"><span class="tree-leading">${icon(view.viewType === 'table' ? 'data' : view.resourceType === 'task' ? 'tasks' : 'documents')}</span><span class="tree-label">${escapeHtml(view.name)}</span><span class="tree-meta">${escapeHtml(view.scope)}</span></button>`).join('')}</div>
   </aside><div class="resizer vertical" data-resizer="sidebar" role="separator" aria-label="Resize primary sidebar"></div>`;
 }
 
 export function globalBar(state) {
+  const unread = unreadNotificationCount(state.notifications);
   return `<header class="global-bar">
     <div class="global-left"><div class="product-mark">M</div><button class="workspace-switcher">Product &amp; Research <span>⌄</span></button></div>
     <button class="command-trigger" data-action="open-command"><span>${icon('search')}</span><span>Search, navigate, or run a command…</span><kbd>Ctrl K</kbd></button>
-    <div class="global-actions"><button class="icon-button" aria-label="Notifications">${icon('bell')}</button><button class="icon-button" data-action="toggle-theme" aria-label="Toggle theme">${icon(state.appearance.theme === 'dark' ? 'moon' : 'sun')}</button><div class="avatar" aria-label="Account">TC</div></div>
+    <div class="global-actions"><button class="icon-button notification-button" data-action="open-notifications" aria-label="Notifications${unread ? `, ${unread} unread` : ''}">${icon('bell')}${unread ? `<span class="notification-badge">${unread}</span>` : ''}</button><button class="icon-button" data-action="toggle-theme" aria-label="Toggle theme">${icon(state.appearance.theme === 'dark' ? 'moon' : 'sun')}</button><div class="avatar" aria-label="Account">TC</div></div>
   </header>`;
 }
 
