@@ -1,8 +1,15 @@
 import { COMMANDS } from '../platform/commands.js';
+import { createDiagnosticsSnapshot } from '../platform/diagnostics.js';
 import { hasCapability } from '../platform/permissions.js';
+import { selectRecoveryItems } from '../platform/recovery.js';
+import { platformRegistries } from '../platform/runtime.js';
 import { WORKSPACE_PRESETS } from '../workspace/presets.js';
 import { icon } from './icons.js';
 import { escapeHtml } from './html.js';
+
+function contributionCount() {
+  return Object.values(platformRegistries).reduce((count, registry) => count + (registry?.list?.().length ?? 0), 0);
+}
 
 export function commandPalette(state) {
   if (state.overlay?.type !== 'command') return '';
@@ -14,6 +21,18 @@ export function commandPalette(state) {
 export function settingsDialog(state) {
   if (state.overlay?.type !== 'settings') return '';
   return `<div class="overlay-backdrop" data-action="close-overlay"><section class="settings-dialog" role="dialog" aria-modal="true" aria-label="Workspace settings" data-overlay-content><div class="dialog-header"><div><span class="surface-eyebrow">PREFERENCES</span><h2>Workspace settings</h2></div><button class="icon-button" data-action="close-overlay">${icon('close')}</button></div><div class="settings-grid"><label>Theme<select data-setting="theme"><option value="dark" ${state.appearance.theme === 'dark' ? 'selected' : ''}>Dark</option><option value="light" ${state.appearance.theme === 'light' ? 'selected' : ''}>Light</option></select></label><label>Density<select data-setting="density"><option value="compact" ${state.appearance.density === 'compact' ? 'selected' : ''}>Compact</option><option value="default" ${state.appearance.density === 'default' ? 'selected' : ''}>Default</option><option value="comfortable" ${state.appearance.density === 'comfortable' ? 'selected' : ''}>Comfortable</option></select></label></div><div class="preset-list"><span>Workspace preset</span>${Object.values(WORKSPACE_PRESETS).map((preset) => `<button class="${state.workspace.preset === preset.id ? 'is-active' : ''}" data-preset="${preset.id}">${preset.label}</button>`).join('')}</div></section></div>`;
+}
+
+export function recoveryCenter(state) {
+  if (state.overlay?.type !== 'recovery') return '';
+  const items = selectRecoveryItems(state);
+  return `<div class="overlay-backdrop" data-action="close-overlay"><section class="system-dialog" role="dialog" aria-modal="true" aria-label="Recovery Center" data-overlay-content><div class="dialog-header"><div><span class="surface-eyebrow">RECOVERY</span><h2>Recovery Center</h2><p>Only unresolved recoverable work appears here.</p></div><button class="icon-button" data-action="close-overlay">${icon('close')}</button></div><div class="system-dialog-body">${items.length ? items.map((item) => `<div class="recovery-row"><div><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.detail ?? item.type)}</span></div><span class="status status-review">${escapeHtml(item.type.replaceAll('-', ' '))}</span></div>`).join('') : '<div class="empty-state compact">No unresolved recovery items.</div>'}</div><div class="dialog-actions"><button class="button secondary" data-action="retry-failed-jobs">Retry failed jobs</button><button class="button secondary" data-action="save-recovery-drafts">Mark drafts saved</button><button class="button" data-action="open-diagnostics">Open Diagnostics</button></div></section></div>`;
+}
+
+export function diagnosticsCenter(state) {
+  if (state.overlay?.type !== 'diagnostics') return '';
+  const snapshot = createDiagnosticsSnapshot(state, { extensionCount: 0, contributionCount: contributionCount() });
+  return `<div class="overlay-backdrop" data-action="close-overlay"><section class="system-dialog" role="dialog" aria-modal="true" aria-label="Diagnostics" data-overlay-content><div class="dialog-header"><div><span class="surface-eyebrow">DIAGNOSTICS</span><h2>Workspace diagnostics</h2><p>Readable health information with technical details kept secondary.</p></div><button class="icon-button" data-action="close-overlay">${icon('close')}</button></div><div class="diagnostic-grid"><div><span>Application</span><strong>${escapeHtml(snapshot.application)}</strong></div><div><span>Connectivity</span><strong>${escapeHtml(snapshot.connectivity)}</strong></div><div><span>Sync issues</span><strong>${snapshot.syncIssues}</strong></div><div><span>Jobs</span><strong>${snapshot.jobs.running} running · ${snapshot.jobs.failed} failed</strong></div><div><span>Extensions</span><strong>${escapeHtml(snapshot.extensions.status)}</strong></div><div><span>Workspace</span><strong>${escapeHtml(snapshot.workspace.preset)} · ${snapshot.workspace.editorGroups} groups</strong></div></div><div class="system-dialog-body"><h3>Recent errors</h3>${snapshot.recentErrors.length ? snapshot.recentErrors.map((error) => `<details><summary>${escapeHtml(error.message)}</summary><div class="diagnostic-detail"><code>${escapeHtml(error.code)}</code><span>${escapeHtml(error.category)} · ${error.recoverable ? 'recoverable' : 'not recoverable'}</span></div></details>`).join('') : '<div class="empty-state compact">No recent errors.</div>'}</div><div class="dialog-actions"><button class="button secondary" data-action="copy-diagnostics">Copy diagnostic info</button><button class="button secondary" data-action="retry-failed-jobs">Retry failed jobs</button><button class="button" data-action="open-recovery">Open Recovery</button></div></section></div>`;
 }
 
 export function contextMenu(state) {

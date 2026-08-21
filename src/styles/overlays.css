@@ -48,3 +48,19 @@
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
 }
 
+
+.system-dialog { width: min(720px, calc(100vw - 40px)); max-height: min(76vh, 720px); display: grid; grid-template-rows: auto minmax(0,1fr) auto; background: var(--bg-elevated); border: 1px solid var(--border-strong); border-radius: 8px; box-shadow: 0 22px 70px rgb(0 0 0 / .38); overflow: hidden; }
+.dialog-header p { margin: 4px 0 0; color: var(--text-muted); font-size: 11px; }
+.system-dialog-body { min-height: 0; overflow: auto; padding: 12px 16px; display: grid; align-content: start; gap: 8px; }
+.system-dialog-body h3 { margin: 2px 0 6px; font-size: 13px; }
+.recovery-row { min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 10px; border: 1px solid var(--border); background: var(--bg-surface); }
+.recovery-row > div { display: grid; gap: 3px; }
+.recovery-row span { color: var(--text-muted); font-size: 11px; }
+.dialog-actions { min-height: 52px; display: flex; justify-content: flex-end; align-items: center; gap: 7px; padding: 10px 14px; border-top: 1px solid var(--border); }
+.diagnostic-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 1px; background: var(--border); border-bottom: 1px solid var(--border); }
+.diagnostic-grid > div { min-height: 64px; display: grid; align-content: center; gap: 5px; padding: 10px 14px; background: var(--bg-surface); }
+.diagnostic-grid span, .diagnostic-detail span { color: var(--text-muted); font-size: 11px; }
+.system-dialog details { border: 1px solid var(--border); background: var(--bg-surface); padding: 8px 10px; }
+.system-dialog summary { cursor: pointer; color: var(--text-secondary); }
+.diagnostic-detail { display: flex; justify-content: space-between; gap: 12px; margin-top: 8px; }
+@media (max-width: 700px) { .diagnostic-grid { grid-template-columns: 1fr 1fr; } }

@@ -8,6 +8,7 @@ import {
   splitGroup,
 } from './editor-layout.js';
 import { createCapabilityPolicy, DEFAULT_CAPABILITIES } from './permissions.js';
+import { clearSelection, createSelection } from './selection.js';
 
 const STORAGE_KEY = 'maximum-workspace:v2';
 const LEGACY_STORAGE_KEYS = Object.freeze(['maximum-workspace:v1']);
@@ -60,6 +61,9 @@ export function createInitialState(saved = null) {
       sync: saved?.connection?.sync ?? 'synced',
     },
     jobs: saved?.jobs ?? [],
+    selection: clearSelection(),
+    focus: { region: null, id: null },
+    recovery: { recoveredDraftIds: saved ? Object.keys(saved?.drafts ?? {}) : [] },
     errors: [],
     toasts: [],
   };
@@ -114,6 +118,8 @@ export function reducer(state, action) {
     }
     case 'workspace/setSize':
       return { ...state, workspace: { ...state.workspace, [action.key]: action.value, preset: 'custom' } };
+    case 'workspace/restore':
+      return { ...state, workspace: { ...state.workspace, ...action.workspace } };
     case 'workspace/setTab':
       return { ...state, workspace: { ...state.workspace, [action.region]: action.tab } };
     case 'navigation/setModule':
@@ -125,6 +131,12 @@ export function reducer(state, action) {
     }
     case 'resource/select':
       return { ...state, selectedResourceId: action.id };
+    case 'selection/set':
+      return { ...state, selection: createSelection(action.selection) };
+    case 'selection/clear':
+      return { ...state, selection: clearSelection(action.scope ?? state.selection.scope) };
+    case 'focus/set':
+      return { ...state, focus: { region: action.region ?? null, id: action.id ?? null } };
     case 'editor/activate':
       return {
         ...state,
@@ -219,7 +231,9 @@ export function reducer(state, action) {
     case 'draft/update':
       return { ...state, drafts: { ...state.drafts, [action.resourceId]: action.value }, connection: { ...state.connection, sync: state.connection.online ? 'saving' : 'offline changes' } };
     case 'draft/markSaved':
-      return { ...state, connection: { ...state.connection, sync: state.connection.online ? 'synced' : 'offline changes' } };
+      return { ...state, connection: { ...state.connection, sync: state.connection.online ? 'synced' : 'offline changes' }, recovery: { ...state.recovery, recoveredDraftIds: [] } };
+    case 'recovery/resolveDraft':
+      return { ...state, recovery: { ...state.recovery, recoveredDraftIds: state.recovery.recoveredDraftIds.filter((id) => id !== action.resourceId) } };
     case 'appearance/theme':
       return { ...state, appearance: { ...state.appearance, theme: action.theme } };
     case 'appearance/density':
@@ -236,6 +250,8 @@ export function reducer(state, action) {
       return { ...state, jobs: [...state.jobs, action.job] };
     case 'job/update':
       return { ...state, jobs: state.jobs.map((job) => (job.id === action.id ? { ...job, ...action.patch } : job)) };
+    case 'job/remove':
+      return { ...state, jobs: state.jobs.filter((job) => job.id !== action.id) };
     case 'error/add':
       return { ...state, errors: [...state.errors.slice(-19), action.error] };
     case 'error/dismiss':
@@ -254,6 +270,8 @@ function serializable(state) {
     ...state,
     navigation: { ...state.navigation, expanded: [...state.navigation.expanded] },
     overlay: null,
+    selection: clearSelection(),
+    focus: { region: null, id: null },
     errors: [],
     toasts: [],
   };

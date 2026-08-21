@@ -69,3 +69,7 @@
 .document-surface h1, .task-surface h1, .workflow-surface h1, .project-surface h1 { font-size: 24px; line-height: 1.2; margin: 0 0 16px; font-weight: 650; letter-spacing: -.02em; }
 .document-surface h2, .task-surface h2 { font-size: 15px; margin: 26px 0 9px; }
 .document-editor { width: 100%; min-height: 250px; resize: vertical; border: 0; outline: 0; padding: 0; background: transparent; color: var(--text-secondary); line-height: 1.65; font-family: inherit; font-size: 14px; }
+
+.table-wrap tr[aria-selected="true"] { background: var(--bg-selected); }
+.table-wrap tr:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.selection-count { color: var(--accent); font-size: 11px; font-weight: 600; }

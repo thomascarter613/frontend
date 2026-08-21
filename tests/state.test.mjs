@@ -67,3 +67,16 @@ test('legacy v1 editor state migrates into the recursive split layout', () => {
   assert.equal(state.editors.layout.first.groupId, 'group-a');
   assert.equal(state.editors.layout.second.groupId, 'group-b');
 });
+
+
+test('focus, selection, active resource, and active editor group remain distinct state concepts', () => {
+  let state = createInitialState();
+  const resourceBefore = state.selectedResourceId;
+  const groupBefore = state.editors.activeGroup;
+  state = reducer(state, { type: 'focus/set', region: 'sidebar', id: 'filter-input' });
+  state = reducer(state, { type: 'selection/set', selection: { scope: 'table:metrics', mode: 'single', ids: ['row-1'], anchorId: 'row-1' } });
+  assert.equal(state.focus.region, 'sidebar');
+  assert.equal(state.selection.ids[0], 'row-1');
+  assert.equal(state.selectedResourceId, resourceBefore);
+  assert.equal(state.editors.activeGroup, groupBefore);
+});

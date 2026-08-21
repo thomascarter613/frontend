@@ -1,5 +1,6 @@
 import { hasCapability } from '../platform/permissions.js';
 import { resolveResourceView } from '../platform/runtime.js';
+import { isSelected, selectionCount } from '../platform/selection.js';
 import { escapeHtml } from './html.js';
 
 function documentView(resource, state) {
@@ -14,15 +15,17 @@ function documentView(resource, state) {
   </article>`;
 }
 
-function tableView() {
+function tableView(resource, state) {
   const rows = [
-    ['Application Shell', 'Design Systems', 'Active', 'Today', 92],
-    ['Resource Layer', 'Platform', 'Review', '2h ago', 76],
-    ['Search Service', 'Platform', 'Planned', 'Yesterday', 48],
-    ['Automation Engine', 'Operations', 'Active', '3h ago', 84],
-    ['Permissions', 'Security', 'Review', '1d ago', 67],
+    ['component-shell', 'Application Shell', 'Design Systems', 'Active', 'Today', 92],
+    ['component-resource', 'Resource Layer', 'Platform', 'Review', '2h ago', 76],
+    ['component-search', 'Search Service', 'Platform', 'Planned', 'Yesterday', 48],
+    ['component-automation', 'Automation Engine', 'Operations', 'Active', '3h ago', 84],
+    ['component-permissions', 'Permissions', 'Security', 'Review', '1d ago', 67],
   ];
-  return `<section class="data-surface"><div class="surface-heading"><div><span class="surface-eyebrow">TABLE VIEW</span><h2>Project Metrics</h2></div><div class="view-actions"><button class="button secondary">Filter</button><button class="button secondary">Columns</button></div></div><div class="metric-strip"><div><span>Delivery</span><strong>78%</strong></div><div><span>Open items</span><strong>24</strong></div><div><span>Review queue</span><strong>7</strong></div></div><div class="table-wrap"><table><thead><tr><th>Component</th><th>Owner</th><th>Status</th><th>Updated</th><th>Progress</th></tr></thead><tbody>${rows.map(([name, owner, status, updated, progress]) => `<tr><td>${name}</td><td>${owner}</td><td><span class="status ${status === 'Review' ? 'status-review' : ''}">${status}</span></td><td>${updated}</td><td><div class="progress"><span style="width:${progress}%"></span></div></td></tr>`).join('')}</tbody></table></div></section>`;
+  const scope = `table:${resource.id}`;
+  const count = state.selection.scope === scope ? selectionCount(state.selection, rows.length) : 0;
+  return `<section class="data-surface"><div class="surface-heading"><div><span class="surface-eyebrow">TABLE VIEW</span><h2>Project Metrics</h2></div><div class="view-actions">${count ? `<span class="selection-count">${count} selected</span>` : ''}<button class="button secondary">Filter</button><button class="button secondary">Columns</button></div></div><div class="metric-strip"><div><span>Delivery</span><strong>78%</strong></div><div><span>Open items</span><strong>24</strong></div><div><span>Review queue</span><strong>7</strong></div></div><div class="table-wrap"><table role="grid" aria-label="Project metrics"><thead><tr><th>Component</th><th>Owner</th><th>Status</th><th>Updated</th><th>Progress</th></tr></thead><tbody>${rows.map(([id, name, owner, status, updated, progress]) => { const selected = state.selection.scope === scope && isSelected(state.selection, id); return `<tr role="row" tabindex="0" class="${selected ? 'is-selected' : ''}" aria-selected="${selected}" data-select-item="${id}" data-selection-scope="${scope}"><td>${name}</td><td>${owner}</td><td><span class="status ${status === 'Review' ? 'status-review' : ''}">${status}</span></td><td>${updated}</td><td><div class="progress"><span style="width:${progress}%"></span></div></td></tr>`; }).join('')}</tbody></table></div></section>`;
 }
 
 function taskView(resource) {
@@ -43,4 +46,3 @@ export function renderResource(resource, state) {
   if (view?.id === 'view.project') return `<section class="project-surface"><span class="surface-eyebrow">PROJECT</span><h1>${escapeHtml(resource.title)}</h1><p>Cross-functional program workspace combining documents, tasks, structured data, analytics, automations, and activity.</p></section>`;
   return `<div class="empty-state">No registered View can render ${escapeHtml(resource.type)}.</div>`;
 }
-

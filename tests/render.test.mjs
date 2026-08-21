@@ -17,3 +17,15 @@ test('command palette renders as overlay without replacing the shell', () => {
   assert.match(html, /command-palette/);
   assert.match(html, /editor-grid/);
 });
+
+
+test('recovery and diagnostics render as bounded overlays over the persistent workspace', () => {
+  let state = reducer(createInitialState({ drafts: { 'document-architecture': 'recovered' } }), { type: 'overlay/open', overlay: { type: 'recovery' } });
+  let html = renderApp(state);
+  assert.match(html, /Recovery Center/);
+  assert.match(html, /editor-grid/);
+  state = reducer(state, { type: 'overlay/open', overlay: { type: 'diagnostics' } });
+  html = renderApp(state);
+  assert.match(html, /Workspace diagnostics/);
+  assert.match(html, /editor-grid/);
+});
